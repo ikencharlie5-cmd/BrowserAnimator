@@ -159,6 +159,16 @@ output{color:var(--muted);font-variant-numeric:tabular-nums}
 .frame canvas{display:block;border-radius:5px;background:var(--checker);pointer-events:none}
 .frame .num{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
 .frame.active .num{color:#fff;font-weight:700}
+.frame .wave{display:block;border-radius:4px;background:rgba(0,0,0,.35);pointer-events:none}
+.frame.beat .num::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent2);margin-right:4px;vertical-align:1px;box-shadow:0 0 6px var(--accent2)}
+.frame.marker .num::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#ffd60a;margin-left:4px;vertical-align:1px}
+.music-name{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--dim)}
+.music-name.has{color:var(--text)}
+.music-name:hover{color:#fff}
+.btn.small{height:26px;padding:0 9px;font-size:12px}
+#stage-area.pulse #view{animation:beatPulse .22s ease-out}
+@keyframes beatPulse{0%{box-shadow:0 0 0 4px var(--accent2),0 0 40px rgba(255,92,168,.5)}100%{box-shadow:0 10px 40px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06)}}
+@media (prefers-reduced-motion:reduce){#stage-area.pulse #view{animation:none}}
 .frame-add{flex:none;align-self:stretch;width:56px;border-radius:10px;border:2px dashed var(--border);background:transparent;color:var(--muted);
   cursor:pointer;display:grid;place-items:center;transition:all .15s;margin-bottom:0}
 .frame-add:hover{border-color:var(--accent);color:#fff;background:rgba(139,108,255,.08)}
@@ -245,6 +255,7 @@ kbd{background:var(--panel3);border:1px solid var(--border);border-bottom-width:
 <div class="mode" id="mode-2d">
   <aside id="tools-panel" class="panel">
     <div class="tool-grid" id="tool-grid">
+      <button class="tool" data-tool="select" title="Select &amp; move (V) — click a shape to grab it, or drag a box"><kbd>V</kbd><svg viewBox="0 0 24 24"><path d="M5 3l6.5 17 2.3-7.2L21 10.5z"/></svg>Select</button>
       <button class="tool" data-tool="brush" title="Brush (B)"><kbd>B</kbd><svg viewBox="0 0 24 24"><path d="M18.4 2.6a2 2 0 012.9 2.9L11.5 15.3l-2.8-2.8z"/><path d="M8.2 13.6c-2.3 0-4 1.6-4 3.8 0 1.4-.7 2.2-2.2 2.6 3.6 1.7 8.6.6 8.6-3.8"/></svg>Brush</button>
       <button class="tool" data-tool="eraser" title="Eraser (E)"><kbd>E</kbd><svg viewBox="0 0 24 24"><path d="M20 20H9L3.7 14.7a2 2 0 010-2.8l9-9a2 2 0 012.8 0l4.8 4.8a2 2 0 010 2.8L11 20"/><path d="M8 9.5l6.5 6.5"/></svg>Eraser</button>
       <button class="tool" data-tool="fill" title="Fill bucket (G)"><kbd>G</kbd><svg viewBox="0 0 24 24"><path d="M4.5 11.5L11 5l7.5 7.5-6.2 6.2a2 2 0 01-2.8 0l-5-5a2 2 0 010-2.2z"/><path d="M4.5 12h14M8 2l3 3"/><path d="M20.5 15.5s2 2.3 2 3.5a2 2 0 01-4 0c0-1.2 2-3.5 2-3.5z"/></svg>Fill</button>
@@ -265,6 +276,9 @@ kbd{background:var(--panel3);border:1px solid var(--border);border-bottom-width:
     <div class="section" id="opt-shape">
       <label class="check"><input type="checkbox" id="shape-fill">Filled shapes</label>
       <div class="hint">Hold Shift to constrain.</div>
+    </div>
+    <div class="section hidden" id="opt-select">
+      <div class="hint" style="margin:0">Click a shape to grab it and drag it anywhere, or drag a box around part of a drawing. Drag a corner to resize (Shift keeps proportions). Arrow keys nudge · Delete removes · Ctrl+C / Ctrl+V copies to another frame.</div>
     </div>
     <div class="section hidden" id="opt-fill">
       <div class="row"><span>Tolerance</span><output id="tol-out">32</output></div>
@@ -339,6 +353,11 @@ kbd{background:var(--panel3);border:1px solid var(--border);border-bottom-width:
           <option value="1">±1</option><option value="2">±2</option><option value="3">±3</option>
         </select>
       </div>
+      <div class="tl-group" title="Music track">
+        <button class="icon-btn" data-action="music" title="Music: import a song or open music settings"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></button>
+        <span id="music-name" class="music-name" data-action="music">Add music</span>
+        <button class="icon-btn hidden" id="btn-mute" data-action="music-mute" title="Mute / unmute music"><svg viewBox="0 0 24 24" id="mute-icon"></svg></button>
+      </div>
       <div class="spacer"></div>
       <span id="frame-info">1 / 1</span>
       <div class="tl-group">
@@ -385,6 +404,16 @@ kbd{background:var(--panel3);border:1px solid var(--border);border-bottom-width:
           <span class="hint" id="sheet-dims" style="margin:0"></span>
         </div>
         <div class="form-row"><button class="btn primary" id="btn-export-sheet">Export sprite sheet</button><span class="hint" style="margin:0">Columns 0 = auto (square-ish grid).</span></div>
+      </div>
+      <div class="card">
+        <h3>🎬 Video with music</h3>
+        <p>Records the animation in real time with your song as an MP4 (or WebM). Keep this tab open and visible while it records.</p>
+        <div class="form-row">
+          <label>Scale</label>
+          <select id="video-scale"><option value="1" selected>100%</option><option value="0.5">50%</option></select>
+          <label class="check"><input type="checkbox" id="video-full-song" checked>Loop the animation for the whole song</label>
+        </div>
+        <div class="form-row"><button class="btn primary" id="btn-export-video">Record video</button><span class="hint" id="video-info" style="margin:0"></span></div>
       </div>
       <div class="card">
         <h3>💾 Project file</h3>
@@ -456,11 +485,52 @@ kbd{background:var(--panel3);border:1px solid var(--border);border-bottom-width:
         <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></span><span>Undo / redo (also <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>)</span>
         <span><kbd>Ctrl</kbd>+<kbd>S</kbd></span><span>Save to browser</span>
         <span><kbd>+</kbd> <kbd>-</kbd> <kbd>0</kbd></span><span>Zoom in / out / fit (also <kbd>Ctrl</kbd>+scroll)</span>
+        <span><kbd>V</kbd></span><span>Select &amp; move: click a shape or drag a box, drag corners to resize</span>
+        <span><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>X</kbd> / <kbd>V</kbd></span><span>Copy / cut / paste the selection (paste onto another frame)</span>
+        <span><kbd>Ctrl</kbd>+<kbd>A</kbd></span><span>Select everything on the layer</span>
+        <span>Arrows · <kbd>Del</kbd> · <kbd>Esc</kbd></span><span>Nudge (Shift = 10px) · delete · drop the selection</span>
+        <span><kbd>M</kbd></span><span>Music marker: tap on the beat while playing, or toggle one on this frame</span>
+        <span><kbd>J</kbd> <kbd>K</kbd></span><span>Jump to previous / next beat or marker</span>
         <span><kbd>?</kbd></span><span>This help</span>
       </div>
     </div>
   </div>
 </div>
+
+<div class="modal" id="dlg-music" hidden>
+  <div class="dialog">
+    <header><h2>Music</h2><button class="icon-btn" data-close><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    <div class="body">
+      <div class="card">
+        <h3 id="music-title">Song</h3>
+        <p id="music-sub"></p>
+        <div class="form-row"><button class="btn" data-action="music-replace">Replace song…</button><button class="btn danger" data-action="music-remove">Remove music</button></div>
+      </div>
+      <div class="card">
+        <h3>Timing</h3>
+        <div class="form-row"><label for="music-offset" style="width:110px">Song start</label><input type="number" id="music-offset" step="0.01" style="width:90px"><span class="hint" style="margin:0">seconds into the song at frame 1 (negative = song starts later)</span></div>
+        <div class="form-row"><label for="music-volume" style="width:110px">Volume</label><input type="range" id="music-volume" min="0" max="100" style="width:140px"><label class="check"><input type="checkbox" id="music-mute">Mute</label></div>
+        <label class="check"><input type="checkbox" id="music-scrub">Play a snippet of the song when stepping through frames</label>
+      </div>
+      <div class="card">
+        <h3>Beats</h3>
+        <div class="form-row"><label for="music-bpm" style="width:110px">Tempo (BPM)</label><input type="number" id="music-bpm" step="0.01" min="20" max="400" style="width:90px"><button class="btn small" data-action="music-half">÷2</button><button class="btn small" data-action="music-double">×2</button><button class="btn small" data-action="music-detect">Detect again</button></div>
+        <div class="form-row"><label for="music-phase" style="width:110px">First beat at</label><input type="number" id="music-phase" step="0.01" style="width:90px"><span class="hint" style="margin:0">seconds (song time) — nudge if the lines sit slightly off the beat</span></div>
+        <label class="check"><input type="checkbox" id="music-showbeats">Show beat lines in the timeline</label>
+        <p id="music-fpb"></p>
+        <div class="form-row" id="music-fps-suggest"></div>
+      </div>
+      <div class="card">
+        <h3>Markers &amp; length</h3>
+        <p>Press <kbd>M</kbd> while playing to drop a marker on each beat you hear, or press <kbd>M</kbd> on a frame to add or remove one. <kbd>J</kbd> / <kbd>K</kbd> jump to the previous / next beat or marker.</p>
+        <div class="form-row"><span id="music-markers" class="hint" style="margin:0"></span><button class="btn small" data-action="music-clear-markers">Clear markers</button></div>
+        <p id="music-length"></p>
+        <div class="form-row"><button class="btn" data-action="music-match">Add frames to match the song</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+<input type="file" id="file-audio" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac" hidden>
 
 <div id="brush-cursor"></div>
 <div id="toasts"></div>
@@ -581,7 +651,9 @@ function layersChanged() { S.layerStamp++; LayersPanel.build(); Timeline.queueAl
 function gotoFrame(i) {
   const n = S.project.frames.length; i = clamp(i, 0, n - 1);
   if (i === S.frameIndex) return;
+  Select.commit();
   S.frameIndex = i; Renderer.request(); Timeline.updateActive(); LayersPanel.queueThumbs();
+  if (!Playback.playing) Music.scrub(i);
 }
 
 /* =====================================================================
@@ -597,9 +669,9 @@ const History = {
     while (this.undoStack.length > 1 && (total > this.maxBytes || this.undoStack.length > this.maxEntries)) total -= this.undoStack.shift().bytes;
     UI.updateUndo();
   },
-  run(cmd) { cmd.do(); this.push({ undo: cmd.undo, redo: cmd.do, bytes: cmd.bytes }); },
-  undo() { if (Tools.stroke) return; const e = this.undoStack.pop(); if (!e) return; Playback.stop(); e.undo(); this.redoStack.push(e); UI.updateUndo(); },
-  redo() { if (Tools.stroke) return; const e = this.redoStack.pop(); if (!e) return; Playback.stop(); e.redo(); this.undoStack.push(e); UI.updateUndo(); },
+  run(cmd) { Select.commit(); cmd.do(); this.push({ undo: cmd.undo, redo: cmd.do, bytes: cmd.bytes }); },
+  undo() { if (Tools.stroke) return; Select.commit(); const e = this.undoStack.pop(); if (!e) return; Playback.stop(); e.undo(); this.redoStack.push(e); UI.updateUndo(); },
+  redo() { if (Tools.stroke) return; Select.commit(); const e = this.redoStack.pop(); if (!e) return; Playback.stop(); e.redo(); this.undoStack.push(e); UI.updateUndo(); },
   clear() { this.undoStack.length = 0; this.redoStack.length = 0; UI.updateUndo(); },
   pixels(frame, layerId, r, before, after) {
     const apply = img => {
@@ -653,8 +725,11 @@ const Renderer = {
       }
       if (!src) continue;
       ctx.globalAlpha = layer.opacity; ctx.drawImage(src, 0, 0);
+      const sl = Select.sel;
+      if (sl && sl.layerId === layer.id && sl.frame === frame && !sl.deleted) ctx.drawImage(sl.float, sl.x, sl.y, sl.w, sl.h);
     }
     ctx.globalAlpha = 1;
+    if ((Select.sel || Select.marquee) && !Playback.playing) Select.drawOverlay(ctx);
   },
   drawOnion(ctx) {
     const p = S.project, n = p.frames.length, used = new Set(), R = S.onion.range;
@@ -732,6 +807,7 @@ const Cursor = {
 const Tools = {
   stroke: null, picking: false, lastPoint: null,
   init() {
+    Select.init();
     this.strokeCanvas = makeCanvas(1, 1); this.sctx = this.strokeCanvas.getContext('2d');
     this.backup = makeCanvas(1, 1); this.bctx = this.backup.getContext('2d', { willReadFrequently: true });
     this.sample = makeCanvas(1, 1); this.samplectx = this.sample.getContext('2d', { willReadFrequently: true });
@@ -744,8 +820,8 @@ const Tools = {
     v.addEventListener('pointerleave', () => { if (!this.stroke) Cursor.hide(); });
     v.addEventListener('contextmenu', e => e.preventDefault());
   },
-  resize(w, h) { for (const c of [this.strokeCanvas, this.backup, this.sample]) { c.width = w; c.height = h; } },
-  set(name) { if (this.stroke) return; S.tool = name; UI.syncTool(); Cursor.refresh(); },
+  resize(w, h) { for (const c of [this.strokeCanvas, this.backup, this.sample]) { c.width = w; c.height = h; } Select.resize(w, h); },
+  set(name) { if (this.stroke) return; if (name !== 'select') Select.commit(); S.tool = name; Renderer.view.style.cursor = ''; UI.syncTool(); Cursor.refresh(); Renderer.request(); },
   pos(e) {
     const r = Renderer.view.getBoundingClientRect(), p = S.project;
     return { x: (e.clientX - r.left) * p.width / r.width, y: (e.clientY - r.top) * p.height / r.height,
@@ -758,7 +834,9 @@ const Tools = {
     if (this.stroke) return;
     Playback.stop();
     const pt = this.pos(e), layer = cur.layer();
-    const tool = (e.altKey && S.tool !== 'eraser') ? 'eyedropper' : S.tool;
+    const tool = (e.altKey && S.tool !== 'eraser' && S.tool !== 'select') ? 'eyedropper' : S.tool;
+    if (tool === 'select') { if (Select.down(e, pt)) Renderer.view.setPointerCapture(e.pointerId); return; }
+    Select.commit();
     if (tool === 'eyedropper') { this.picking = true; Renderer.view.setPointerCapture(e.pointerId); this.pick(pt); return; }
     if (!layer.visible) { toast('This layer is hidden — show it to draw on it', 'warn'); return; }
     if (tool === 'fill') { this.fill(pt); return; }
@@ -789,6 +867,7 @@ const Tools = {
   move(e) {
     Cursor.move(e);
     if (this.picking) { this.pick(this.pos(e)); return; }
+    if (S.tool === 'select') { Select.move(e, this.pos(e)); return; }
     const st = this.stroke; if (!st || e.pointerId !== st.pointerId) return;
     const evs = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
     if (st.tool === 'brush' || st.tool === 'eraser') for (const ev of evs) this.segment(this.pos(ev));
@@ -835,6 +914,7 @@ const Tools = {
   },
   up(e) {
     if (this.picking) { this.picking = false; return; }
+    if (S.tool === 'select') { Select.up(e); return; }
     const st = this.stroke; if (!st || e.pointerId !== st.pointerId) return;
     if (st.tool === 'brush' || st.tool === 'eraser') {
       const pts = st.pts, n = pts.length;
@@ -927,6 +1007,208 @@ function floodMask(img, sx, sy, tol) {
 }
 
 /* =====================================================================
+   5b. SELECT / MOVE TOOL — click a shape to grab it (or drag a box),
+   move it, resize from the corners, nudge, delete, copy/paste across
+   frames. Works on the active layer; the lifted pixels "float" until
+   the selection is dropped, which records one undo step.
+   ===================================================================== */
+const Select = {
+  sel: null, drag: null, marquee: null, clipboard: null, cache: null,
+  init() { this.backup = makeCanvas(1, 1); this.bctx = this.backup.getContext('2d', { willReadFrequently: true }); },
+  resize(w, h) { this.backup.width = w; this.backup.height = h; this.sel = null; this.cache = null; this.marquee = null; },
+  cellData(frame, layerId) {
+    const c = frame.cells[layerId]; if (!c) return null;
+    const k = this.cache;
+    if (k && k.frame === frame && k.layerId === layerId && k.v === frame.version && k.c === c) return k.data;
+    const data = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+    this.cache = { frame, layerId, v: frame.version, c, data }; return data;
+  },
+  alphaAt(pt) {
+    const p = S.project, x = Math.floor(pt.x), y = Math.floor(pt.y);
+    if (x < 0 || y < 0 || x >= p.width || y >= p.height) return 0;
+    const d = this.cellData(cur.frame(), S.layerId); return d ? d.data[(y * p.width + x) * 4 + 3] : 0;
+  },
+  snapshot(cell) { const p = S.project; this.bctx.clearRect(0, 0, p.width, p.height); this.bctx.drawImage(cell, 0, 0); },
+  begin(float, x, y, orig) {
+    this.sel = { frame: cur.frame(), layerId: S.layerId, float, x, y, w: float.width, h: float.height, orig, deleted: false };
+    this.cache = null; Renderer.request();
+  },
+  /** Lift everything inside rect r, trimmed to the drawn content. */
+  liftRect(r) {
+    const p = S.project, W = p.width, frame = cur.frame(), cell = frame.cells[S.layerId]; if (!cell) return false;
+    const d = this.cellData(frame, S.layerId).data;
+    const rx0 = clamp(Math.floor(r.x), 0, W), ry0 = clamp(Math.floor(r.y), 0, p.height), rx1 = clamp(Math.ceil(r.x + r.w), 0, W), ry1 = clamp(Math.ceil(r.y + r.h), 0, p.height);
+    let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
+    for (let y = ry0; y < ry1; y++) for (let x = rx0, i = (y * W + x) * 4 + 3; x < rx1; x++, i += 4) if (d[i]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) return false;
+    const w = x1 - x0 + 1, h = y1 - y0 + 1, f = makeCanvas(w, h);
+    f.getContext('2d').drawImage(cell, x0, y0, w, h, 0, 0, w, h);
+    this.snapshot(cell); cell.getContext('2d').clearRect(x0, y0, w, h);
+    this.begin(f, x0, y0, { x: x0, y: y0, w, h }); return true;
+  },
+  /** Lift the connected shape under pt (8-connected, any non-transparent pixel). */
+  liftBlob(pt) {
+    const p = S.project, W = p.width, H = p.height, frame = cur.frame(), cell = frame.cells[S.layerId];
+    const d = this.cellData(frame, S.layerId).data, mask = new Uint8Array(W * H);
+    const sx = Math.floor(pt.x), sy = Math.floor(pt.y), stack = [sy * W + sx]; mask[sy * W + sx] = 1;
+    let x0 = sx, x1 = sx, y0 = sy, y1 = sy;
+    while (stack.length) {
+      const k = stack.pop(), x = k % W, y = (k - x) / W;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      for (let dy = -1; dy <= 1; dy++) {
+        const ny = y + dy; if (ny < 0 || ny >= H) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx; if (nx < 0 || nx >= W) continue;
+          const n = ny * W + nx; if (!mask[n] && d[n * 4 + 3]) { mask[n] = 1; stack.push(n); }
+        }
+      }
+    }
+    const w = x1 - x0 + 1, h = y1 - y0 + 1, fl = new ImageData(w, h), fd = fl.data;
+    this.snapshot(cell);
+    const cx = cell.getContext('2d'), region = cx.getImageData(x0, y0, w, h), rd = region.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (!mask[(y0 + y) * W + x0 + x]) continue;
+      const o = (y * w + x) * 4;
+      fd[o] = rd[o]; fd[o + 1] = rd[o + 1]; fd[o + 2] = rd[o + 2]; fd[o + 3] = rd[o + 3];
+      rd[o] = rd[o + 1] = rd[o + 2] = rd[o + 3] = 0;
+    }
+    cx.putImageData(region, x0, y0);
+    const f = makeCanvas(w, h); f.getContext('2d').putImageData(fl, 0, 0);
+    this.begin(f, x0, y0, { x: x0, y: y0, w, h });
+  },
+  handles() { const s = this.sel; return [[s.x, s.y], [s.x + s.w, s.y], [s.x + s.w, s.y + s.h], [s.x, s.y + s.h]]; },
+  handleAt(pt) { const r = 9 / View.scale; return this.handles().findIndex(([hx, hy]) => Math.abs(pt.x - hx) <= r && Math.abs(pt.y - hy) <= r); },
+  inside(pt) { const s = this.sel; return pt.x >= s.x && pt.x <= s.x + s.w && pt.y >= s.y && pt.y <= s.y + s.h; },
+  mine() { const s = this.sel; return s && s.frame === cur.frame() && s.layerId === S.layerId; },
+  down(e, pt) {
+    if (this.mine()) {
+      const h = this.handleAt(pt), s = this.sel;
+      if (h >= 0) { this.drag = { mode: 'scale', fix: this.handles()[(h + 2) % 4], aspect: s.w / s.h, id: e.pointerId }; return true; }
+      if (this.inside(pt)) { this.drag = { mode: 'move', dx: pt.x - s.x, dy: pt.y - s.y, id: e.pointerId }; return true; }
+    }
+    this.commit();
+    if (!cur.layer().visible) { toast('This layer is hidden — show it to select on it', 'warn'); return false; }
+    if (this.alphaAt(pt) > 0) {
+      this.liftBlob(pt);
+      this.drag = { mode: 'move', dx: pt.x - this.sel.x, dy: pt.y - this.sel.y, id: e.pointerId };
+      Renderer.view.style.cursor = 'move'; return true;
+    }
+    this.marquee = { x0: pt.x, y0: pt.y, x1: pt.x, y1: pt.y, id: e.pointerId }; Renderer.request(); return true;
+  },
+  move(e, pt) {
+    const m = this.marquee;
+    if (m && e.pointerId === m.id) { m.x1 = pt.x; m.y1 = pt.y; Renderer.request(); return; }
+    const d = this.drag, s = this.sel;
+    if (!d || !s || e.pointerId !== d.id) { this.hover(pt); return; }
+    if (d.mode === 'move') { s.x = Math.round(pt.x - d.dx); s.y = Math.round(pt.y - d.dy); }
+    else {
+      let w = Math.max(2, Math.abs(pt.x - d.fix[0])), h = Math.max(2, Math.abs(pt.y - d.fix[1]));
+      if (e.shiftKey) { if (w / h > d.aspect) h = w / d.aspect; else w = h * d.aspect; }
+      s.w = w; s.h = h; s.x = pt.x < d.fix[0] ? d.fix[0] - w : d.fix[0]; s.y = pt.y < d.fix[1] ? d.fix[1] - h : d.fix[1];
+    }
+    Renderer.request();
+  },
+  up(e) {
+    const m = this.marquee;
+    if (m && e.pointerId === m.id) {
+      this.marquee = null;
+      const r = { x: Math.min(m.x0, m.x1), y: Math.min(m.y0, m.y1), w: Math.abs(m.x1 - m.x0), h: Math.abs(m.y1 - m.y0) };
+      if (r.w > 2 && r.h > 2 && !this.liftRect(r)) toast('Nothing drawn there on this layer');
+      Renderer.request(); return;
+    }
+    if (this.drag && e.pointerId === this.drag.id) this.drag = null;
+  },
+  hover(pt) {
+    let c = 'default';
+    if (this.mine()) { const h = this.handleAt(pt); if (h >= 0) c = h % 2 ? 'nesw-resize' : 'nwse-resize'; else if (this.inside(pt)) c = 'move'; }
+    if (c === 'default' && cur.layer().visible && this.alphaAt(pt) > 0) c = 'move';
+    Renderer.view.style.cursor = c;
+  },
+  /** Drop the floating selection back into the layer (one undo step). */
+  commit() {
+    const s = this.sel; if (!s) return;
+    this.sel = null; this.drag = null; this.cache = null;
+    const p = S.project;
+    if (p.frames.indexOf(s.frame) < 0 || !p.layers.some(l => l.id === s.layerId)) { Renderer.request(); return; }
+    const cell = getCell(s.frame, s.layerId, true), cx = cell.getContext('2d'), o = s.orig;
+    const nx = Math.round(s.x), ny = Math.round(s.y), nw = Math.max(1, Math.round(s.w)), nh = Math.max(1, Math.round(s.h));
+    if (!s.deleted) { cx.imageSmoothingQuality = 'high'; cx.drawImage(s.float, nx, ny, nw, nh); }
+    if (o && !s.deleted && nx === o.x && ny === o.y && nw === o.w && nh === o.h) { Renderer.request(); return; } // unchanged
+    if (s.deleted && !o) { Renderer.request(); return; } // deleted a paste: nothing changed
+    let x0, y0, x1, y1;
+    if (s.deleted) { x0 = o.x; y0 = o.y; x1 = o.x + o.w; y1 = o.y + o.h; }
+    else {
+      x0 = nx; y0 = ny; x1 = nx + nw; y1 = ny + nh;
+      if (o) { x0 = Math.min(x0, o.x); y0 = Math.min(y0, o.y); x1 = Math.max(x1, o.x + o.w); y1 = Math.max(y1, o.y + o.h); }
+    }
+    x0 = clamp(x0, 0, p.width); y0 = clamp(y0, 0, p.height); x1 = clamp(x1, 0, p.width); y1 = clamp(y1, 0, p.height);
+    const r = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    if (r.w > 0 && r.h > 0) History.push(History.pixels(s.frame, s.layerId, r, this.bctx.getImageData(r.x, r.y, r.w, r.h), cx.getImageData(r.x, r.y, r.w, r.h)));
+    frameChanged(s.frame);
+  },
+  deleteSel() { if (!this.sel) return; this.sel.deleted = true; this.commit(); },
+  copy(cut) {
+    const s = this.sel; if (!s) { toast('Select something first (V)', 'warn'); return; }
+    const c = makeCanvas(Math.max(1, Math.round(s.w)), Math.max(1, Math.round(s.h)));
+    c.getContext('2d').drawImage(s.float, 0, 0, c.width, c.height);
+    this.clipboard = { c, x: Math.round(s.x), y: Math.round(s.y) };
+    if (cut) { this.deleteSel(); toast('Cut — go to another frame and press Ctrl+V'); }
+    else toast('Copied — go to another frame and press Ctrl+V');
+  },
+  paste() {
+    if (!this.clipboard) { toast('Nothing copied yet — select something and press Ctrl+C', 'warn'); return; }
+    this.commit();
+    const layer = cur.layer(); if (!layer.visible) { toast('This layer is hidden — show it to paste', 'warn'); return; }
+    Tools.set('select');
+    this.snapshot(getCell(cur.frame(), layer.id, true));
+    const cb = this.clipboard; this.begin(Project.cloneCanvas(cb.c), cb.x, cb.y, null);
+    toast('Pasted — drag it into place');
+  },
+  selectAll() {
+    this.commit(); Tools.set('select');
+    const p = S.project; if (!this.liftRect({ x: 0, y: 0, w: p.width, h: p.height })) toast('This layer is empty in this frame', 'warn');
+  },
+  handleKey(e) {
+    const ctrl = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+    if (ctrl && !e.shiftKey && !e.altKey) {
+      if (k === 'c') { this.copy(false); return true; }
+      if (k === 'x') { this.copy(true); return true; }
+      if (k === 'v') { this.paste(); return true; }
+      if (k === 'a') { this.selectAll(); return true; }
+    }
+    if (!this.sel || ctrl) return false;
+    const st = e.shiftKey ? 10 : 1, s = this.sel;
+    switch (e.key) {
+      case 'ArrowLeft': s.x -= st; break;
+      case 'ArrowRight': s.x += st; break;
+      case 'ArrowUp': s.y -= st; break;
+      case 'ArrowDown': s.y += st; break;
+      case 'Delete': case 'Backspace': this.deleteSel(); return true;
+      case 'Escape': case 'Enter': this.commit(); return true;
+      default: return false;
+    }
+    Renderer.request(); return true;
+  },
+  drawOverlay(ctx) {
+    const z = 1 / View.scale;
+    ctx.save(); ctx.lineWidth = 1.5 * z;
+    const rect = (x, y, w, h) => {
+      ctx.setLineDash([]); ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeRect(x, y, w, h);
+      ctx.setLineDash([6 * z, 4 * z]); ctx.strokeStyle = '#ffffff'; ctx.strokeRect(x, y, w, h);
+    };
+    const m = this.marquee;
+    if (m) rect(Math.min(m.x0, m.x1), Math.min(m.y0, m.y1), Math.abs(m.x1 - m.x0), Math.abs(m.y1 - m.y0));
+    const s = this.sel;
+    if (s && s.frame === cur.frame()) {
+      rect(s.x, s.y, s.w, s.h); ctx.setLineDash([]);
+      const hs = 9 * z; ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#8b6cff';
+      for (const [hx, hy] of this.handles()) { ctx.fillRect(hx - hs / 2, hy - hs / 2, hs, hs); ctx.strokeRect(hx - hs / 2, hy - hs / 2, hs, hs); }
+    }
+    ctx.restore();
+  }
+};
+
+/* =====================================================================
    6. TIMELINE (frames strip, thumbnails, frame commands)
    ===================================================================== */
 const Timeline = {
@@ -942,15 +1224,16 @@ const Timeline = {
   thumbSize() { const p = S.project, th = 64; return [Math.round(clamp(th * p.width / p.height, 36, 140)), th]; },
   thumbFor(f) {
     let c = this.thumbs.get(f.id);
-    if (!c) { const [w, h] = this.thumbSize(); c = makeCanvas(w * 2, h * 2); c.style.width = w + 'px'; c.style.height = h + 'px'; this.thumbs.set(f.id, c); this.queue.add(f.id); }
+    if (!c) { const [w, h] = this.thumbSize(), k = S.project.frames.length > 150 ? 1 : 2; c = makeCanvas(w * k, h * k); c.style.width = w + 'px'; c.style.height = h + 'px'; this.thumbs.set(f.id, c); this.queue.add(f.id); }
     return c;
   },
   build() {
-    const p = S.project, frag = document.createDocumentFragment(), ids = new Set();
+    const p = S.project, frag = document.createDocumentFragment(), ids = new Set(), music = Music.loaded(), [tw] = this.thumbSize();
     p.frames.forEach((f, i) => {
       ids.add(f.id);
       const el = document.createElement('div'); el.className = 'frame'; el.dataset.id = f.id;
       el.appendChild(this.thumbFor(f));
+      if (music) { const wv = makeCanvas(tw * 2, 36); wv.className = 'wave'; wv.style.width = tw + 'px'; wv.style.height = '18px'; el.appendChild(wv); }
       const num = document.createElement('span'); num.className = 'num'; num.textContent = i + 1; el.appendChild(num);
       frag.appendChild(el);
     });
@@ -960,7 +1243,13 @@ const Timeline = {
     frag.appendChild(add);
     this.strip.replaceChildren(frag);
     for (const k of [...this.thumbs.keys()]) if (!ids.has(k)) this.thumbs.delete(k);
+    if (music) this.redrawWaves();
     this.updateActive(); this.schedule();
+  },
+  redrawWaves() { $$('.frame', this.strip).forEach((el, i) => this.redrawWave(i, el)); },
+  redrawWave(i, el = $$('.frame', this.strip)[i]) {
+    const c = el && el.querySelector('.wave'); if (!c || !Music.loaded()) return;
+    const r = Music.drawTile(c, i); el.classList.toggle('beat', r.beat); el.classList.toggle('marker', r.marker);
   },
   updateActive() {
     const els = $$('.frame', this.strip), R = S.onion.on ? S.onion.range : 0;
@@ -995,6 +1284,7 @@ const Timeline = {
     if (label) toast(label);
   },
   duplicate() {
+    Select.commit();
     const src = cur.frame(), f = Project.newFrame();
     for (const k in src.cells) f.cells[k] = Project.cloneCanvas(src.cells[k]);
     this.addFrame(S.frameIndex + 1, f);
@@ -1024,7 +1314,7 @@ const LayersPanel = {
     this.list = $('#layers');
     makeSortable(this.list, {
       item: '.layer', axis: 'y',
-      onSelect: (i, el) => { if (S.layerId !== el.dataset.id) { S.layerId = el.dataset.id; this.updateActive(); } },
+      onSelect: (i, el) => { if (S.layerId !== el.dataset.id) { Select.commit(); S.layerId = el.dataset.id; this.updateActive(); } },
       onMove: (from, to) => { const n = S.project.layers.length; from === to ? this.build() : this.move(n - 1 - from, n - 1 - to); }
     });
     this.list.addEventListener('dblclick', e => { const el = e.target.closest('.layer'); if (el && !e.target.closest('[data-nodrag]')) this.rename(el); });
@@ -1102,6 +1392,7 @@ const LayersPanel = {
     History.run({ do: () => mv(from, to), undo: () => mv(to, from) });
   },
   clearCell() {
+    Select.commit();
     const p = S.project, f = cur.frame(), l = cur.layer(), c = f.cells[l.id]; if (!c) return;
     const cx = c.getContext('2d'), before = cx.getImageData(0, 0, p.width, p.height);
     cx.clearRect(0, 0, p.width, p.height);
@@ -1118,15 +1409,28 @@ const Playback = {
   toggle() { this.playing ? this.stop() : this.play(); },
   play() {
     if (this.playing || Tools.stroke) return;
+    Select.commit();
     const p = S.project;
     if (!p.loop && S.frameIndex >= p.frames.length - 1) gotoFrame(0);
-    this.playing = true; this.last = performance.now(); this.acc = 0;
+    this.playing = true; this.last = performance.now(); this.acc = 0; this.lastBeat = -1;
     UI.setPlaying(true); Renderer.request();
+    const synced = Music.loaded();
+    if (synced) Music.start(S.frameIndex / p.fps);
     const tick = t => {
       if (!this.playing) return;
-      this.acc += Math.min(250, t - this.last); this.last = t;
-      const step = 1000 / S.project.fps;
-      while (this.acc >= step && this.playing) { this.acc -= step; this.advance(); }
+      if (synced && Music.loaded()) {
+        // audio clock drives the frames, so pictures stay locked to the song
+        const now = Music.now(), n = S.project.frames.length, f = Math.max(0, Math.floor(now * S.project.fps + 1e-6));
+        if (f >= n) { if (S.project.loop) { Music.start(0); gotoFrame(0); } else { this.stop(); return; } }
+        else gotoFrame(f);
+        const bi = lowerBound(Music.beats, now + Music.meta.offset);
+        if (bi !== this.lastBeat) { if (this.lastBeat >= 0 && bi > this.lastBeat && Music.meta.showBeats) UI.pulse(); this.lastBeat = bi; }
+        this.last = t;
+      } else {
+        this.acc += Math.min(250, t - this.last); this.last = t;
+        const step = 1000 / S.project.fps;
+        while (this.acc >= step && this.playing) { this.acc -= step; this.advance(); }
+      }
       this.raf = requestAnimationFrame(tick);
     };
     this.raf = requestAnimationFrame(tick);
@@ -1139,8 +1443,242 @@ const Playback = {
   },
   stop() {
     if (!this.playing) return;
-    this.playing = false; cancelAnimationFrame(this.raf);
+    this.playing = false; cancelAnimationFrame(this.raf); Music.stop();
     UI.setPlaying(false); Renderer.request(); LayersPanel.queueThumbs();
+  }
+};
+
+/* =====================================================================
+   8b. MUSIC — import a song, per-frame waveform, beat detection,
+   audio-clock playback sync, scrubbing and beat markers.
+   Song files live in IndexedDB (too big for localStorage).
+   ===================================================================== */
+const IDB = {
+  db: null,
+  open() {
+    if (this.db) return Promise.resolve(this.db);
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('ba-audio', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('files');
+      r.onsuccess = () => res(this.db = r.result); r.onerror = () => rej(r.error);
+    });
+  },
+  async op(mode, fn) {
+    const db = await this.open();
+    return new Promise((res, rej) => { const tx = db.transaction('files', mode), r = fn(tx.objectStore('files')); tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error); });
+  },
+  put(k, v) { return this.op('readwrite', s => s.put(v, k)); },
+  get(k) { return this.op('readonly', s => s.get(k)); },
+  del(k) { return this.op('readwrite', s => s.delete(k)); }
+};
+function fmtTime(s) { s = Math.max(0, s || 0); const m = Math.floor(s / 60), r = s - m * 60; return m + ':' + r.toFixed(1).padStart(4, '0'); }
+function lowerBound(a, x) { let lo = 0, hi = a.length; while (lo < hi) { const m = (lo + hi) >> 1; if (a[m] < x) lo = m + 1; else hi = m; } return lo; }
+function dataURLToBlob(u) {
+  const i = u.indexOf(','), mime = (/data:([^;,]+)/.exec(u.slice(0, i)) || [])[1] || 'application/octet-stream', bin = atob(u.slice(i + 1)), a = new Uint8Array(bin.length);
+  for (let k = 0; k < bin.length; k++) a[k] = bin.charCodeAt(k);
+  return new Blob([a], { type: mime });
+}
+function blobToDataURL(b) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); }); }
+
+const Music = {
+  ctx: null, gain: null, buffer: null, blob: null, peaks: null, peakHop: 0, beats: [], source: null, scrubSrc: null, t0: 0,
+  get meta() { return S.project && S.project.audio; },
+  loaded() { return !!(this.buffer && this.meta); },
+  ensureCtx() {
+    if (!this.ctx) { const AC = window.AudioContext || window.webkitAudioContext; this.ctx = new AC(); this.gain = this.ctx.createGain(); this.gain.connect(this.ctx.destination); }
+    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+    return this.ctx;
+  },
+  applyGain() { if (this.gain && this.meta) this.gain.gain.value = this.meta.muted ? 0 : this.meta.volume; },
+  sanitize(o) {
+    return {
+      key: String(o.key || ''), name: String(o.name || 'Music'), type: String(o.type || ''), duration: +o.duration || 0,
+      offset: +o.offset || 0, bpm: +o.bpm || 0, beatOffset: +o.beatOffset || 0, showBeats: o.showBeats !== false,
+      markers: Array.isArray(o.markers) ? o.markers.map(Number).filter(Number.isFinite).sort((a, b) => a - b) : [],
+      volume: clamp(o.volume ?? .9, 0, 1), muted: !!o.muted, scrub: o.scrub !== false
+    };
+  },
+  async decode(blob) { return await this.ensureCtx().decodeAudioData(await blob.arrayBuffer()); },
+  async importFile(file) {
+    try {
+      toast(`Loading “${file.name}”…`);
+      const buf = await this.decode(file), key = newId('A'), old = S.project.audio;
+      try { await IDB.put(key, file); } catch (e) { console.warn(e); toast('Music loaded, but this browser could not store it — keep the file handy', 'warn'); }
+      if (old && old.key) IDB.del(old.key).catch(() => {});
+      S.project.audio = this.sanitize({ key, name: file.name, type: file.type, duration: buf.duration, volume: old ? old.volume : .9 });
+      this.setBuffer(buf, file);
+      const r = this.detect(); S.project.audio.bpm = r.bpm; S.project.audio.beatOffset = r.offset;
+      this.updateBeats(); UI.syncMusic(); Timeline.build(); markDirty();
+      toast(`Loaded “${file.name}” · ${fmtTime(buf.duration)} · about ${r.bpm} BPM. Pink lines under the frames are the beats.`, 'good', 5000);
+    } catch (err) { console.error(err); toast('Could not read that audio file. Try MP3, WAV, OGG or M4A.', 'error'); }
+  },
+  setBuffer(buf, blob) { this.stop(); this.buffer = buf; this.blob = blob; this.computePeaks(); },
+  reset() { this.stop(); this.stopScrub(); this.buffer = null; this.blob = null; this.peaks = null; this.beats = []; },
+  async restore(p, blob) {
+    this.reset();
+    const a = p.audio; if (!a) return;
+    try {
+      if (!blob && a.key) blob = await IDB.get(a.key);
+      if (S.project !== p) return;
+      if (!blob) { toast(`Re-import “${a.name}” — the song isn’t stored in this browser`, 'warn', 5000); UI.syncMusic(); return; }
+      const buf = await this.decode(blob); if (S.project !== p) return;
+      this.setBuffer(buf, blob); this.updateBeats(); UI.syncMusic(); Timeline.build();
+    } catch (err) { console.warn(err); toast('Could not load the music for this project', 'warn'); }
+  },
+  remove() {
+    const a = this.meta; if (!a) return;
+    if (a.key) IDB.del(a.key).catch(() => {});
+    this.reset(); S.project.audio = null; UI.syncMusic(); Timeline.build(); markDirty(); toast('Music removed');
+  },
+  computePeaks() {
+    const b = this.buffer, sr = b.sampleRate, n = b.length, hop = Math.max(1, Math.floor(sr / 400)), cols = Math.ceil(n / hop);
+    const a0 = b.getChannelData(0), a1 = b.numberOfChannels > 1 ? b.getChannelData(1) : a0, P = new Float32Array(cols);
+    let max = 1e-6;
+    for (let i = 0; i < cols; i++) {
+      let m = 0; const end = Math.min(n, (i + 1) * hop);
+      for (let j = i * hop; j < end; j++) { const v = Math.max(Math.abs(a0[j]), Math.abs(a1[j])); if (v > m) m = v; }
+      P[i] = m; if (m > max) max = m;
+    }
+    for (let i = 0; i < cols; i++) P[i] /= max;
+    this.peaks = P; this.peakHop = hop / sr;
+  },
+  /** Onset envelope (full band + bass) → autocorrelation tempo → fine comb search for exact period & phase. */
+  detect() {
+    const b = this.buffer, sr = b.sampleRate, a0 = b.getChannelData(0), a1 = b.numberOfChannels > 1 ? b.getChannelData(1) : a0;
+    const hopS = .01, hop = Math.round(sr * hopS), N = Math.floor(b.length / hop);
+    if (N < 300) return { bpm: 120, offset: 0 };
+    const eF = new Float32Array(N), eL = new Float32Array(N), alpha = 1 - Math.exp(-2 * Math.PI * 150 / sr);
+    let lp = 0;
+    for (let k = 0; k < N; k++) {
+      let sf = 0, sl = 0;
+      for (let j = k * hop, e = j + hop; j < e; j++) { const v = (a0[j] + a1[j]) * .5; lp += alpha * (v - lp); sf += v * v; sl += lp * lp; }
+      eF[k] = Math.log(1e-4 + sf); eL[k] = Math.log(1e-4 + sl);
+    }
+    const on = new Float32Array(N);
+    for (let k = 1; k < N; k++) on[k] = Math.max(0, eF[k] - eF[k - 1]) + 1.5 * Math.max(0, eL[k] - eL[k - 1]);
+    const pre = new Float64Array(N + 1); for (let k = 0; k < N; k++) pre[k + 1] = pre[k] + on[k];
+    const o = new Float32Array(N), W = 25;
+    for (let k = 0; k < N; k++) { const lo = Math.max(0, k - W), hi = Math.min(N, k + W + 1); o[k] = Math.max(0, on[k] - (pre[hi] - pre[lo]) / (hi - lo)); }
+    const minL = Math.floor(60 / 200 / hopS), maxL = Math.ceil(60 / 60 / hopS), sc = [];
+    let best = -1, bestL = 50;
+    for (let L = minL; L <= maxL; L++) {
+      let s = 0; for (let k = L; k < N; k++) s += o[k] * o[k - L]; s /= (N - L); sc[L] = s;
+      const bpm = 60 / (L * hopS), wgt = Math.exp(-.5 * Math.pow(Math.log2(bpm / 120) / .9, 2));
+      if (s * wgt > best) { best = s * wgt; bestL = L; }
+    }
+    const comb = (P, ph) => { let s = 0, c = 0; for (let t = ph; t < N - 1; t += P) { const i = t | 0, f = t - i; s += o[i] * (1 - f) + o[i + 1] * f; c++; } return c ? s / c : 0; };
+    let bP = bestL, bPh = 0, bS = -1;
+    for (let P = bestL * .97; P <= bestL * 1.03; P += .01) for (let ph = 0; ph < P; ph += 1) { const s = comb(P, ph); if (s > bS) { bS = s; bP = P; bPh = ph; } }
+    return { bpm: +(60 / (bP * hopS)).toFixed(2), offset: +(bPh * hopS).toFixed(3) };
+  },
+  updateBeats() {
+    const a = this.meta; this.beats = [];
+    if (!a || !this.buffer || !a.bpm) return;
+    const per = 60 / a.bpm;
+    for (let t = ((a.beatOffset % per) + per) % per; t < this.buffer.duration; t += per) this.beats.push(t);
+  },
+  redetect() {
+    if (!this.buffer) return;
+    const r = this.detect(); Object.assign(this.meta, { bpm: r.bpm, beatOffset: r.offset }); this.changed(); toast(`Detected about ${r.bpm} BPM`);
+  },
+  scaleBpm(f) { const a = this.meta; if (!a || !a.bpm) return; a.bpm = clamp(+(a.bpm * f).toFixed(2), 20, 400); this.changed(); },
+  changed() { this.updateBeats(); Timeline.redrawWaves(); UI.syncMusicDialog(); if (Playback.playing) this.start(S.frameIndex / S.project.fps); markDirty(); },
+  onFpsChange() { if (!this.loaded()) return; if (Playback.playing) this.start(S.frameIndex / S.project.fps); this.redrawSoon(); UI.syncMusicDialog(); },
+  // ---- playback (audio clock) ----
+  start(animT) {
+    this.stop(); this.stopScrub();
+    const ctx = this.ensureCtx(), a = this.meta, src = ctx.createBufferSource();
+    src.buffer = this.buffer; src.connect(this.gain); this.applyGain();
+    const when = ctx.currentTime + .03, songT = animT + a.offset;
+    if (songT >= 0) { if (songT < this.buffer.duration) src.start(when, songT); } else src.start(when - songT);
+    this.t0 = when - animT; this.source = src;
+  },
+  stop() { if (this.source) { try { this.source.stop(); } catch {} this.source.disconnect(); this.source = null; } },
+  /** Animation time (s) the listener is hearing right now, latency-compensated. */
+  now() { const c = this.ctx; return c.currentTime - this.t0 - (c.outputLatency || c.baseLatency || 0); },
+  scrub(i) {
+    const a = this.meta; if (!this.loaded() || a.scrub === false || a.muted) return;
+    const ctx = this.ensureCtx(), fps = S.project.fps, songT = i / fps + a.offset;
+    if (songT < 0 || songT >= this.buffer.duration) return;
+    this.stopScrub(); this.applyGain();
+    const dur = Math.max(1 / fps, .12), t = ctx.currentTime, src = ctx.createBufferSource(), g = ctx.createGain();
+    src.buffer = this.buffer; src.connect(g); g.connect(this.gain);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + .008); g.gain.setValueAtTime(1, t + dur - .02); g.gain.linearRampToValueAtTime(0, t + dur);
+    src.start(t, songT, dur); this.scrubSrc = src;
+  },
+  stopScrub() { if (this.scrubSrc) { try { this.scrubSrc.stop(); } catch {} this.scrubSrc = null; } },
+  // ---- timeline drawing ----
+  frameTimes(i) { const fps = S.project.fps, o = this.meta.offset; return [i / fps + o, (i + 1) / fps + o]; },
+  drawTile(c, i) {
+    const x = c.getContext('2d'), w = c.width, h = c.height, a = this.meta, [t0, t1] = this.frameTimes(i), span = t1 - t0;
+    x.clearRect(0, 0, w, h);
+    const P = this.peaks, hop = this.peakHop;
+    if (P) {
+      x.fillStyle = 'rgba(165,145,255,.9)';
+      for (let px = 0; px < w; px++) {
+        const ta = t0 + span * px / w, tb = t0 + span * (px + 1) / w;
+        const ia = Math.max(0, Math.floor(ta / hop)), ib = Math.min(P.length, Math.max(Math.floor(ta / hop) + 1, Math.ceil(tb / hop)));
+        let m = 0; for (let k = ia; k < ib; k++) if (P[k] > m) m = P[k];
+        if (m > 0) { const bh = Math.max(1, m * (h - 2)); x.fillRect(px, (h - bh) / 2, 1, bh); }
+      }
+    }
+    const lines = (arr, color) => {
+      let hit = false; x.fillStyle = color;
+      for (let k = lowerBound(arr, t0); k < arr.length && arr[k] < t1; k++) { x.fillRect(Math.round((arr[k] - t0) / span * w) - 1, 0, 3, h); hit = true; }
+      return hit;
+    };
+    return { beat: a.showBeats ? lines(this.beats, '#ff5ca8') : false, marker: lines(a.markers, '#ffd60a') };
+  },
+  // ---- beat tools ----
+  toggleMarker() {
+    if (!this.loaded()) { toast('Import music first, then press M to mark beats', 'warn'); return; }
+    const a = this.meta, fps = S.project.fps; let fi;
+    if (Playback.playing) { const t = this.now(); a.markers.push(t + a.offset); fi = Math.floor(t * fps); }
+    else {
+      const [t0, t1] = this.frameTimes(S.frameIndex), before = a.markers.length;
+      a.markers = a.markers.filter(m => m < t0 || m >= t1);
+      if (a.markers.length === before) a.markers.push(t0 + (t1 - t0) * .02);
+      fi = S.frameIndex;
+    }
+    a.markers.sort((x, y) => x - y);
+    Timeline.redrawWave(fi); UI.syncMusicDialog(); markDirty();
+  },
+  jumpBeat(dir) {
+    if (!this.loaded()) { toast('Import music to jump between beats', 'warn'); return; }
+    const a = this.meta, fps = S.project.fps, n = S.project.frames.length;
+    const frames = [...new Set((a.showBeats ? this.beats : []).concat(a.markers).map(t => Math.floor((t - a.offset) * fps + 1e-6)))].filter(f => f >= 0).sort((x, y) => x - y);
+    const target = dir > 0 ? frames.find(f => f > S.frameIndex) : frames.reverse().find(f => f < S.frameIndex);
+    if (target === undefined) { toast('No more beats that way'); return; }
+    if (target >= n) { toast(`The next beat is at frame ${target + 1}, past your last frame. Add frames to keep going.`, 'warn'); return; }
+    Playback.stop(); gotoFrame(target);
+  },
+  matchLength() {
+    if (!this.loaded()) return;
+    const a = this.meta, p = S.project, need = Math.max(1, Math.ceil((this.buffer.duration - a.offset) * p.fps)), have = p.frames.length;
+    if (need <= have) { toast(`You already have ${have} frames; the song needs ${need}.`); return; }
+    const add = need - have;
+    if (add > 400 && !confirm(`This adds ${add} blank frames. Long animations use more memory. Continue?`)) return;
+    const nf = Array.from({ length: add }, () => Project.newFrame());
+    History.run({
+      do: () => { p.frames.push(...nf); framesChanged(); },
+      undo: () => { p.frames.splice(have, add); S.frameIndex = Math.min(S.frameIndex, have - 1); framesChanged(); }
+    });
+    UI.syncMusicDialog(); toast(`Added ${add} blank frames. The animation now runs as long as the song.`, 'good');
+  },
+  init() {
+    this.redrawSoon = debounce(() => Timeline.redrawWaves(), 80);
+    $('#file-audio').addEventListener('change', e => { const f = e.target.files[0]; if (f) this.importFile(f); e.target.value = ''; });
+    const a = () => S.project.audio;
+    const num = (id, fn) => $(id).addEventListener('change', e => { const v = parseFloat(e.target.value); if (!Number.isFinite(v) || !a()) return; fn(v); this.changed(); });
+    num('#music-offset', v => a().offset = clamp(v, -600, 3600));
+    num('#music-bpm', v => a().bpm = clamp(v, 20, 400));
+    num('#music-phase', v => a().beatOffset = v);
+    $('#music-volume').addEventListener('input', e => { if (!a()) return; a().volume = e.target.value / 100; this.applyGain(); });
+    $('#music-volume').addEventListener('change', () => markDirty());
+    $('#music-mute').addEventListener('change', e => { if (!a()) return; a().muted = e.target.checked; this.applyGain(); UI.syncMusic(); markDirty(); });
+    $('#music-scrub').addEventListener('change', e => { if (!a()) return; a().scrub = e.target.checked; markDirty(); });
+    $('#music-showbeats').addEventListener('change', e => { if (!a()) return; a().showBeats = e.target.checked; this.changed(); });
+    $('#music-fps-suggest').addEventListener('click', e => { const b = e.target.closest('[data-fps]'); if (b) UI.setFps(+b.dataset.fps); });
   }
 };
 
@@ -1263,7 +1801,7 @@ const Exporter = {
   },
   progress(v) { const el = $('#export-progress'); el.classList.toggle('hidden', v == null); if (v != null) el.firstElementChild.style.width = (v * 100).toFixed(1) + '%'; },
   async gif() {
-    if (this.busy) return; this.busy = true; Playback.stop();
+    if (this.busy) return; this.busy = true; Playback.stop(); Select.commit();
     try {
       const p = S.project, scale = +$('#gif-scale').value, transparent = $('#gif-transparent').checked;
       const fr = this.frameRenderer(scale, transparent), n = p.frames.length, delays = [];
@@ -1287,7 +1825,7 @@ const Exporter = {
     return { cols, rows, fw, fh, scale, reduced: scale !== +$('#sheet-scale').value };
   },
   async sheet() {
-    if (this.busy) return; this.busy = true; Playback.stop();
+    if (this.busy) return; this.busy = true; Playback.stop(); Select.commit();
     try {
       const p = S.project, L = this.sheetLayout();
       const c = makeCanvas(L.cols * L.fw, L.rows * L.fh), x = c.getContext('2d');
@@ -1306,8 +1844,69 @@ const Exporter = {
     } catch (err) { console.error(err); toast('Sprite sheet export failed: ' + err.message, 'error'); }
     finally { this.busy = false; this.progress(null); }
   },
+  /** Real-time recording of the animation + music via MediaRecorder. */
+  async video() {
+    if (this.busy) { if (this.recording) this.recording.cancel = true; return; }
+    const c0 = document.createElement('canvas');
+    if (typeof MediaRecorder === 'undefined' || !c0.captureStream) { toast('Video recording is not supported in this browser', 'error'); return; }
+    this.busy = true; Playback.stop(); Select.commit();
+    const btn = $('#btn-export-video'); let src = null, stream = null;
+    try {
+      const p = S.project, scale = +$('#video-scale').value, fps = p.fps, n = p.frames.length;
+      const w = Math.max(2, Math.round(p.width * scale / 2) * 2), h = Math.max(2, Math.round(p.height * scale / 2) * 2);
+      const c = makeCanvas(w, h), x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+      const draw = i => { x.fillStyle = p.transparentBg ? '#ffffff' : p.bg; x.fillRect(0, 0, w, h); Renderer.composite(p.frames[i], x, w, h, false); };
+      const hasMusic = Music.loaded(), a = p.audio;
+      let dur = n / fps;
+      if (hasMusic && $('#video-full-song').checked) dur = Math.max(dur, Music.buffer.duration - a.offset);
+      const mime = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m));
+      if (!mime) throw new Error('no supported video format');
+      draw(0);
+      stream = c.captureStream(Math.max(fps, 24));
+      let ac = null;
+      if (hasMusic) {
+        ac = Music.ensureCtx(); await ac.resume();
+        const dest = ac.createMediaStreamDestination(), g = ac.createGain(); g.gain.value = a.volume;
+        src = ac.createBufferSource(); src.buffer = Music.buffer; src.connect(g); g.connect(dest);
+        dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+      }
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6 }), chunks = [];
+      rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      const stopped = new Promise(r => rec.onstop = r);
+      rec.start(250);
+      let t0, clock;
+      if (hasMusic) { t0 = ac.currentTime + .05; if (a.offset >= 0) src.start(t0, a.offset); else src.start(t0 - a.offset); clock = () => ac.currentTime - t0; }
+      else { t0 = performance.now(); clock = () => (performance.now() - t0) / 1000; }
+      this.recording = { cancel: false }; btn.textContent = 'Stop recording';
+      this.progress(0);
+      await new Promise(res => {
+        let last = -1;
+        const loop = () => {
+          const t = clock();
+          if (t >= dur || this.recording.cancel) return res();
+          const f = Math.max(0, Math.floor(t * fps)) % n;
+          if (f !== last) { draw(f); last = f; } else x.fillRect(0, 0, 0, 0); // keep the stream ticking
+          this.progress(Math.max(0, t / dur));
+          setTimeout(loop, 15);
+        };
+        loop();
+      });
+      const cancelled = this.recording.cancel;
+      rec.stop(); await stopped;
+      const blob = new Blob(chunks, { type: mime.split(';')[0] }), ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+      downloadBlob(blob, safeName(p.name) + '.' + ext);
+      toast(`Video ${cancelled ? 'stopped early and ' : ''}saved · ${w}×${h} · ${fmtTime(Math.min(dur, clock()))} · ${ext.toUpperCase()} · ${fmtBytes(blob.size)}`, 'good', 4500);
+    } catch (err) { console.error(err); toast('Video export failed: ' + err.message, 'error'); }
+    finally {
+      if (src) try { src.stop(); } catch {}
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      this.busy = false; this.recording = null; btn.textContent = 'Record video'; this.progress(null);
+    }
+  },
   updateDims() {
     const p = S.project, g = +$('#gif-scale').value, L = this.sheetLayout();
+    $('#video-info').textContent = Music.loaded() ? `With music: ${S.project.audio.name}` : 'No music loaded — the video will be silent';
+    $('#video-full-song').disabled = !Music.loaded();
     $('#gif-dims').textContent = `${Math.round(p.width * g)}×${Math.round(p.height * g)} · ${p.frames.length} frames @ ${p.fps} fps`;
     $('#sheet-dims').textContent = `${L.cols}×${L.rows} → ${L.cols * L.fw}×${L.rows * L.fh}px`;
   }
@@ -1331,6 +1930,7 @@ const Store = {
     return {
       app: 'BrowserAnimator', format: 1, name: p.name, width: p.width, height: p.height, fps: p.fps, loop: p.loop,
       bg: p.bg, transparentBg: p.transparentBg, layers: p.layers.map(l => ({ ...l })),
+      audio: p.audio ? { ...p.audio, markers: [...p.audio.markers] } : null,
       frames: p.frames.map(f => { const cells = {}; for (const l of p.layers) if (f.cells[l.id]) cells[l.id] = this.cellURL(f, l.id, f.cells[l.id]); return { id: f.id, cells }; })
     };
   },
@@ -1339,6 +1939,7 @@ const Store = {
     const p = {
       name: o.name || 'Imported', width: o.width | 0, height: o.height | 0, fps: clamp(o.fps | 0 || 12, 1, 30), loop: o.loop !== false,
       bg: o.bg || '#ffffff', transparentBg: !!o.transparentBg,
+      audio: o.audio && typeof o.audio === 'object' ? Music.sanitize(o.audio) : null,
       layers: o.layers.map(l => ({ id: l.id || newId('L'), name: l.name || 'Layer', visible: l.visible !== false, opacity: l.opacity ?? 1 })),
       frames: []
     };
@@ -1362,6 +1963,7 @@ const Store = {
     return c.toDataURL('image/jpeg', .7);
   },
   save(silent) {
+    Select.commit();
     const p = S.project;
     try {
       const json = JSON.stringify(this.serialize(p));
@@ -1381,29 +1983,42 @@ const Store = {
   scheduleAutosave() {
     if (!S.autosave) return;
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => { if (Tools.stroke || Playback.playing || Exporter.busy) this.scheduleAutosave(); else if (S.dirty) this.save(true); }, 2500);
+    this.timer = setTimeout(() => { if (Tools.stroke || Playback.playing || Exporter.busy || Select.sel) this.scheduleAutosave(); else if (S.dirty) this.save(true); }, 2500);
   },
   async load(name) {
     const raw = localStorage.getItem(this.P + name); if (!raw) throw new Error('Project not found');
     const p = await this.deserialize(JSON.parse(raw)); p.name = name; return p;
   },
-  remove(name) { localStorage.removeItem(this.P + name); this.writeIndex(this.readIndex().filter(e => e.name !== name)); },
+  remove(name, keepAudio) {
+    if (!keepAudio) try {
+      const o = JSON.parse(localStorage.getItem(this.P + name)), k = o && o.audio && o.audio.key;
+      if (k && !(S.project.audio && S.project.audio.key === k)) IDB.del(k).catch(() => {});
+    } catch {}
+    localStorage.removeItem(this.P + name); this.writeIndex(this.readIndex().filter(e => e.name !== name)); },
   rename(oldName, newName) {
     const idx = this.readIndex();
     if (idx.some(e => e.name === newName) && !confirm(`A project called “${newName}” exists. Overwrite it?`)) return false;
-    if (idx.some(e => e.name === oldName)) this.remove(oldName);
+    if (idx.some(e => e.name === oldName)) this.remove(oldName, true);
     S.project.name = newName; this.save(true); return true;
   },
-  exportJSON() {
-    const p = S.project, blob = new Blob([JSON.stringify(this.serialize(p))], { type: 'application/json' });
-    downloadBlob(blob, safeName(p.name) + '.json'); toast(`Downloaded ${safeName(p.name)}.json (${fmtBytes(blob.size)})`, 'good');
+  async exportJSON() {
+    Select.commit();
+    const p = S.project, o = this.serialize(p);
+    if (p.audio && Music.blob) { try { o.audioData = await blobToDataURL(Music.blob); } catch (e) { console.warn(e); } }
+    const blob = new Blob([JSON.stringify(o)], { type: 'application/json' });
+    downloadBlob(blob, safeName(p.name) + '.json'); toast(`Downloaded ${safeName(p.name)}.json (${fmtBytes(blob.size)})${o.audioData ? ' · includes music' : ''}`, 'good');
   },
   async importFile(file) {
     try {
-      const p = await this.deserialize(JSON.parse(await file.text()));
+      const o = JSON.parse(await file.text()), p = await this.deserialize(o);
+      let audioBlob = null;
+      if (o.audioData && p.audio) {
+        audioBlob = dataURLToBlob(o.audioData); p.audio.key = newId('A');
+        try { await IDB.put(p.audio.key, audioBlob); } catch (e) { console.warn(e); }
+      }
       const names = new Set(this.readIndex().map(e => e.name));
       if (names.has(p.name)) { let n = 2; while (names.has(`${p.name} (${n})`)) n++; p.name = `${p.name} (${n})`; }
-      App.setProject(p); markDirty(); Modal.close(); toast(`Imported “${p.name}”`, 'good');
+      App.setProject(p, audioBlob); markDirty(); Modal.close(); toast(`Imported “${p.name}”`, 'good');
     } catch (err) { console.error(err); toast('Could not import: ' + err.message, 'error'); }
   },
   storageUsed() { let n = 0; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('ba.')) n += (localStorage.getItem(k) || '').length * 2; } return n; },
@@ -1474,7 +2089,7 @@ const UI = {
     $('#sample-all').addEventListener('change', e => S.sampleAll = e.target.checked);
     $('#color').addEventListener('input', e => this.setColor(e.target.value, true));
     $('#color').addEventListener('change', () => Store.saveSettings());
-    $('#fps').addEventListener('input', e => { S.project.fps = +e.target.value; $('#fps-out').textContent = e.target.value; markDirty(); });
+    $('#fps').addEventListener('input', e => this.setFps(+e.target.value));
     $('#loop').addEventListener('change', e => { S.project.loop = e.target.checked; markDirty(); });
     $('#onion-opacity').addEventListener('input', e => { S.onion.opacity = e.target.value / 100; Renderer.request(); });
     $('#onion-range').addEventListener('change', e => { S.onion.range = +e.target.value; Renderer.request(); Timeline.updateActive(); e.target.blur(); });
@@ -1492,6 +2107,7 @@ const UI = {
     $('#sheet-scale').addEventListener('change', () => Exporter.updateDims());
     $('#sheet-cols').addEventListener('input', () => Exporter.updateDims());
     $('#btn-export-gif').onclick = () => Exporter.gif();
+    $('#btn-export-video').onclick = () => Exporter.video();
     $('#btn-export-sheet').onclick = () => Exporter.sheet();
     $('#btn-create').onclick = () => Dialogs.createProject();
     $('#new-name').addEventListener('keydown', e => { if (e.key === 'Enter') Dialogs.createProject(); });
@@ -1508,6 +2124,7 @@ const UI = {
     $$('#tool-grid .tool').forEach(b => b.classList.toggle('active', b.dataset.tool === S.tool));
     $('#opt-shape').classList.toggle('hidden', !['rect', 'ellipse'].includes(S.tool));
     $('#opt-fill').classList.toggle('hidden', S.tool !== 'fill');
+    $('#opt-select').classList.toggle('hidden', S.tool !== 'select');
     this.syncSize();
   },
   syncSize() {
@@ -1548,6 +2165,39 @@ const UI = {
     }
     this.setColor(S.color);
   },
+  setFps(v) { v = clamp(v | 0, 1, 30); S.project.fps = v; $('#fps').value = v; $('#fps-out').textContent = v; Music.onFpsChange(); markDirty(); },
+  pulse() { const v = $('#stage-area'); v.classList.remove('pulse'); void v.offsetWidth; v.classList.add('pulse'); },
+  syncMusic() {
+    const a = S.project && S.project.audio, el = $('#music-name');
+    el.textContent = a ? a.name : 'Add music'; el.classList.toggle('has', !!a);
+    el.title = a ? `${a.name} — click for music settings` : 'Import a song (MP3, WAV, OGG, M4A)';
+    $('#btn-mute').classList.toggle('hidden', !a); $('#btn-mute').classList.toggle('on', !!(a && a.muted));
+    $('#mute-icon').innerHTML = a && a.muted ? '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/>' : '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14"/>';
+    this.syncMusicDialog();
+  },
+  syncMusicDialog() {
+    const a = S.project && S.project.audio; if (!a) return;
+    const b = Music.buffer, fps = S.project.fps;
+    const set = (id, v) => { const el = $(id); if (document.activeElement === el) return; if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+    $('#music-title').textContent = '♪ ' + a.name;
+    $('#music-sub').textContent = b ? `${fmtTime(b.duration)} long · ${(b.sampleRate / 1000).toFixed(1)} kHz` : 'This song isn’t stored in this browser. Use “Replace song” to load it again.';
+    set('#music-offset', +a.offset.toFixed(3)); set('#music-volume', Math.round(a.volume * 100)); set('#music-mute', !!a.muted); set('#music-scrub', a.scrub !== false);
+    set('#music-bpm', a.bpm ? +a.bpm.toFixed(2) : ''); set('#music-phase', +a.beatOffset.toFixed(3)); set('#music-showbeats', a.showBeats);
+    const sug = $('#music-fps-suggest'); sug.replaceChildren();
+    if (a.bpm) {
+      const fpb = 60 / a.bpm * fps, exact = Math.abs(fpb - Math.round(fpb)) < .03;
+      $('#music-fpb').textContent = `At ${fps} fps one beat lasts ${fpb.toFixed(2)} frames. ` + (exact ? 'Every beat lands exactly on a frame.' : 'Beats fall between frames; the pink lines show exactly where.');
+      let good = [];
+      for (let f = 1; f <= 30; f++) { const v = 60 / a.bpm * f; if (Math.abs(v - Math.round(v)) < .03 && Math.round(v) >= 2) good.push(f); }
+      good = good.sort((x, y) => Math.abs(x - fps) - Math.abs(y - fps)).slice(0, 6).sort((x, y) => x - y);
+      if (good.length) {
+        const l = document.createElement('label'); l.textContent = 'Beats land on whole frames at:'; sug.appendChild(l);
+        for (const f of good) { const btn = document.createElement('button'); btn.className = 'btn small' + (f === fps ? ' primary' : ''); btn.dataset.fps = f; btn.textContent = `${f} fps (${Math.round(60 / a.bpm * f)}/beat)`; sug.appendChild(btn); }
+      }
+    } else $('#music-fpb').textContent = 'Set a tempo to see beat lines.';
+    $('#music-markers').textContent = `${a.markers.length} marker${a.markers.length === 1 ? '' : 's'}`;
+    $('#music-length').textContent = b ? `The song needs ${Math.max(1, Math.ceil((b.duration - a.offset) * fps))} frames at ${fps} fps. Your animation has ${S.project.frames.length}.` : '';
+  },
   updateUndo() { $('#btn-undo').disabled = !History.undoStack.length; $('#btn-redo').disabled = !History.redoStack.length; },
   updateFrameInfo() { $('#frame-info').textContent = `Frame ${S.frameIndex + 1} / ${S.project.frames.length}`; },
   updateTitle() {
@@ -1582,6 +2232,13 @@ const Actions = {
   'layer-up': () => LayersPanel.move(cur.layerIndex(), cur.layerIndex() + 1),
   'layer-down': () => LayersPanel.move(cur.layerIndex(), cur.layerIndex() - 1),
   play: () => Playback.toggle(),
+  music: () => { if (S.project.audio) { UI.syncMusicDialog(); Modal.show('#dlg-music'); } else $('#file-audio').click(); },
+  'music-replace': () => $('#file-audio').click(),
+  'music-remove': () => { Music.remove(); Modal.close(); },
+  'music-mute': () => { const a = S.project.audio; if (!a) return; a.muted = !a.muted; Music.applyGain(); UI.syncMusic(); markDirty(); },
+  'music-detect': () => Music.redetect(), 'music-half': () => Music.scaleBpm(.5), 'music-double': () => Music.scaleBpm(2),
+  'music-clear-markers': () => { const a = S.project.audio; if (a) { a.markers = []; Timeline.redrawWaves(); UI.syncMusicDialog(); markDirty(); } },
+  'music-match': () => Music.matchLength(),
   'frame-prev': () => { Playback.stop(); gotoFrame(S.frameIndex - 1); }, 'frame-next': () => { Playback.stop(); gotoFrame(S.frameIndex + 1); },
   'frame-first': () => { Playback.stop(); gotoFrame(0); }, 'frame-last': () => { Playback.stop(); gotoFrame(S.project.frames.length - 1); },
   'frame-add': () => { Playback.stop(); Timeline.addFrame(); }, 'frame-dup': () => { Playback.stop(); Timeline.duplicate(); },
@@ -1612,6 +2269,7 @@ const Studio2D = {
   activate() { requestAnimationFrame(() => View.apply()); Renderer.request(); },
   deactivate() { Playback.stop(); Cursor.hide(); },
   onKey(e) {
+    if (Select.handleKey(e)) return true;
     const ctrl = e.ctrlKey || e.metaKey, k = e.key;
     if (ctrl) {
       const lk = k.toLowerCase();
@@ -1621,7 +2279,7 @@ const Studio2D = {
       return false;
     }
     if (e.altKey) return false;
-    const tools = { b: 'brush', e: 'eraser', g: 'fill', l: 'line', r: 'rect', c: 'ellipse', i: 'eyedropper' };
+    const tools = { v: 'select', b: 'brush', e: 'eraser', g: 'fill', l: 'line', r: 'rect', c: 'ellipse', i: 'eyedropper' };
     const lk = k.length === 1 ? k.toLowerCase() : k;
     if (tools[lk] && !e.shiftKey) { Tools.set(tools[lk]); return true; }
     switch (k) {
@@ -1638,6 +2296,9 @@ const Studio2D = {
       case 'd': case 'D': Actions['frame-dup'](); return true;
       case 'Delete': case 'Backspace': Actions['frame-delete'](); return true;
       case 'o': case 'O': Actions.onion(); return true;
+      case 'm': case 'M': Music.toggleMarker(); return true;
+      case 'j': case 'J': Music.jumpBeat(-1); return true;
+      case 'k': case 'K': Music.jumpBeat(1); return true;
       case '+': case '=': View.zoomBy(1.25); return true;
       case '-': case '_': View.zoomBy(.8); return true;
       case '0': View.fit(); return true;
@@ -1653,17 +2314,20 @@ const Studio3DPlaceholder = { el: $('#mode-3d'), activate() {}, deactivate() {},
    ===================================================================== */
 const App = {
   confirmDiscard() { return !S.dirty || S.autosave || confirm('You have unsaved changes. Continue anyway?'); },
-  setProject(p) {
+  setProject(p, audioBlob) {
+    Select.commit();
     if (S.dirty && S.autosave && S.project) Store.save(true);
+    Music.reset();
     Playback.stop();
     S.project = p; S.frameIndex = 0; S.layerId = p.layers[p.layers.length - 1].id; S.dirty = false; S.layerStamp++;
     History.clear(); Store.urlCache.clear(); Timeline.thumbs.clear(); LayersPanel.thumbs.clear(); Tools.lastPoint = null;
     Renderer.setSize(p.width, p.height);
     UI.syncProject(); Timeline.build(); LayersPanel.build(); View.apply(); Renderer.request();
+    UI.syncMusic(); Music.restore(p, audioBlob);
   },
   async init() {
     Store.loadSettings();
-    Renderer.init(); Tools.init(); View.init(); Cursor.init(); Timeline.init(); LayersPanel.init(); UI.init(); Modal.init(); Modes.init();
+    Renderer.init(); Tools.init(); View.init(); Cursor.init(); Timeline.init(); LayersPanel.init(); UI.init(); Music.init(); Modal.init(); Modes.init();
     Modes.register('2d', Studio2D); Modes.register('3d', Studio3DPlaceholder);
 
     document.addEventListener('keydown', e => {
@@ -1686,7 +2350,7 @@ const App = {
     if (p) toast(`Welcome back — restored “${p.name}”`); else toast('Welcome! Press ? for shortcuts ✨', '', 3500);
   }
 };
-window.BA = { S, Project, History, Renderer, Tools, Timeline, LayersPanel, Playback, Exporter, GifEncoder, Store, Modes, App }; // for debugging / future modes
+window.BA = { S, Project, History, Select, Music, Renderer, Tools, Timeline, LayersPanel, Playback, Exporter, GifEncoder, Store, Modes, App }; // for debugging / future modes
 App.init();
 </script>
 </body>
